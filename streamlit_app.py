@@ -4,6 +4,7 @@ import time
 from io import BytesIO
 import json
 import re
+import xml.etree.ElementTree as ET
 
 # Set up Streamlit app
 st.title("💬 Chatbot with Assistants API and Media Upload")
@@ -149,8 +150,8 @@ else:
                         st.markdown(assistant_reply)
                     st.session_state.messages.append({"role": "assistant", "content": assistant_reply, "is_json": False})
 
-    # Button to download the latest JSON object from chat history
-    if st.button("Download Latest JSON Message"):
+    # Button to transform the latest JSON object to XML using provided function and download it
+    if st.button("Download Latest JSON as swimlane diagram"):
         # Find the latest JSON object in the chat history
         latest_json_message = None
         for message in reversed(st.session_state.messages):
@@ -163,14 +164,128 @@ else:
                     continue
 
         if latest_json_message:
-            # Convert JSON object to string and write it to a .txt file
-            json_string = json.dumps(latest_json_message, indent=2)
-            json_bytes = json_string.encode('utf-8')
+            # Use the provided function to transform the JSON into XML
+            def transform_json_to_drawio_xml(data):
+                diagram = ET.Element('mxfile')
+                diagram_doc = ET.SubElement(diagram, 'diagram', name="Swimlane Diagram")
+                graph_model = ET.SubElement(diagram_doc, 'mxGraphModel')
+                root = ET.SubElement(graph_model, 'root')
+
+                # Create root cells
+                ET.SubElement(root, 'mxCell', id="0")
+                ET.SubElement(root, 'mxCell', id="1", parent="0")
+
+                # Create swimlanes and steps
+                swimlane_ids = {}
+                position_y = 0
+                step_height = 60
+                step_width = 150
+                spacing = 20
+                initial_offset = 50
+
+                # Calculate total swimlane width dynamically
+                max_column = max([position for position in range(len(data['arrows']) + 1)])
+                swimlane_width = (max_column + 1) * (step_width + spacing) + initial_offset
+                swimlane_height = 100
+
+                total_timeline_height = 50 + 30
+
+                # Create swimlanes
+                for index, lane in enumerate(data['swimlanes'], start=2):
+                    lane_id = f"lane_{index}"
+                    swimlane_ids[lane['stakeholder']] = lane_id
+                    lane_style = "swimlane;horizontal=0;whiteSpace=wrap;"
+                    lane_cell = ET.SubElement(root, 'mxCell', id=lane_id, parent="1", value=lane['stakeholder'], style=lane_style, vertex="1")
+                    ET.SubElement(lane_cell, 'mxGeometry', y=str(position_y), width=str(swimlane_width), height=str(swimlane_height)).set('as', 'geometry')
+                    position_y += swimlane_height
+
+                # Add timeline swimlane
+                timeline_id = "timeline"
+                timeline_style = "swimlane;horizontal=0;whiteSpace=wrap;"
+                timeline_cell = ET.SubElement(root, 'mxCell', id=timeline_id, parent="1", value="Timeline", style=timeline_style, vertex="1")
+                ET.SubElement(timeline_cell, 'mxGeometry', y=str(position_y), width=str(swimlane_width), height=str(total_timeline_height)).set('as', 'geometry')
+
+                # Position steps in columns based on the order defined by arrows
+                step_positions = {}
+                current_column = 0
+                column_width = step_width + spacing
+
+                # Determine the order of steps based on arrows
+                for arrow in data['arrows']:
+                    from_id = arrow['from_id']
+                    to_id = arrow['to_id']
+                    if from_id not in step_positions:
+                        step_positions[from_id] = current_column
+                        current_column += 1
+                    if to_id not in step_positions:
+                        step_positions[to_id] = current_column
+                        current_column += 1
+
+                # Place steps in their respective swimlanes and columns
+                for lane in data['swimlanes']:
+                    for step in lane['steps']:
+                        step_id = step['id']
+                        swimlane_id = swimlane_ids[lane['stakeholder']]
+                        color = "#00FF00" if step['activity_type'] == "value-adding" else "#FFFF00" if step['activity_type'] == "non-value-adding but necessary" else "#FF0000"
+                        style = f"shape=rectangle;fillColor={color};strokeColor=#000000;whiteSpace=wrap;"
+                        step_cell = ET.SubElement(root, 'mxCell', id=step_id, parent=swimlane_id, value=step['name'], style=style, vertex="1")
+                        column_x = step_positions[step_id] * column_width + initial_offset
+                        ET.SubElement(step_cell, 'mxGeometry', x=str(column_x), y=str(spacing), width=str(step_width), height=str(step_height)).set('as', 'geometry')
+
+                        # Add time taken for each step in the timeline
+                        timeline_step_id = f"timeline_{step_id}"
+                        timeline_step_value = f"{step['time_taken_days']} days"
+                        timeline_step_cell = ET.SubElement(root, 'mxCell', id=timeline_step_id, parent=timeline_id, value=timeline_step_value, vertex="1")
+                        ET.SubElement(timeline_step_cell, 'mxGeometry', x=str(column_x), y=str(spacing), width=str(step_width), height=str(20)).set('as', 'geometry')
+
+                # Add delay times between steps in the timeline
+                for arrow in data['arrows']:
+                    from_id = arrow['from_id']
+                    to_id = arrow['to_id']
+                    delay_time = arrow['delay_time']
+                    if delay_time > 0:
+                        from_column = step_positions[from_id]
+                        to_column = step_positions[to_id]
+                        delay_column_x = (from_column + to_column) / 2 * column_width + initial_offset
+                        delay_id = f"delay_{from_id}_to_{to_id}"
+                        delay_value = f"Delay: {delay_time} days"
+                        delay_cell = ET.SubElement(root, 'mxCell', id=delay_id, parent=timeline_id, value=delay_value, vertex="1")
+                        ET.SubElement(delay_cell, 'mxGeometry', x=str(delay_column_x), y=str(spacing + 30), width=str(step_width), height=str(20)).set('as', 'geometry')
+
+                # Add arrows (connections)
+                for arrow in data['arrows']:
+                    from_id = arrow['from_id']
+                    to_id = arrow['to_id']
+                    arrow_style = "edgeStyle=orthogonal;strokeColor=#000000;strokeWidth=2"
+                    arrow_cell = ET.SubElement(root, 'mxCell', parent="1", edge="1", source=from_id, target=to_id, style=arrow_style)
+                    ET.SubElement(arrow_cell, 'mxGeometry', relative="1").set('as', 'geometry')
+
+                # Add process stats note
+                process_stats = data['process_stats']
+                process_stats_text = (
+                    f"Cycle Time: {process_stats['cycle_time_days']} days\n"
+                    f"Value-Adding Activities: {process_stats['time_value_adding_activities_days']} days\n"
+                    f"Non-Value-Adding Activities: {process_stats['time_non_value_adding_activities_days']} days\n"
+                    f"Value-Adding Percentage: {process_stats['value_adding_percentage']}%\n"
+                    f"Non-Value-Adding Percentage: {process_stats['non_value_adding_percentage']}%\n"
+                    f"Process Output: {process_stats['process_output_value']}\n"
+                    f"Customer: {process_stats['customer']}"
+                )
+                process_stats_id = "process_stats"
+                process_stats_cell = ET.SubElement(root, 'mxCell', id=process_stats_id, parent="1", value=process_stats_text, style="shape=note;whiteSpace=wrap;", vertex="1")
+                ET.SubElement(process_stats_cell, 'mxGeometry', x=str(swimlane_width + 20), y="20", width="300", height="200").set('as', 'geometry')
+
+                return diagram
+
+            xml_root = transform_json_to_drawio_xml(latest_json_message)
+            xml_str = ET.tostring(xml_root, encoding='utf-8', method='xml')
+
+            # Allow user to download the XML file
             st.download_button(
-                label="Download JSON Message",
-                data=json_bytes,
-                file_name="latest_message.txt",
-                mime="text/plain"
+                label="Download diagrams.net File",
+                data=xml_str,
+                file_name="latest_message.xml",
+                mime="application/xml"
             )
         else:
             st.warning("No JSON message found in chat history.")
