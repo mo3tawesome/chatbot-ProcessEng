@@ -2,6 +2,8 @@ import streamlit as st
 import openai
 import time
 from io import BytesIO
+import json
+import re
 
 # Set up Streamlit app
 st.title("💬 Chatbot with Assistants API and Media Upload")
@@ -56,7 +58,7 @@ else:
         message_content = []
 
         # Add user message to chat
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "user", "content": prompt, "is_json": False})
         with st.chat_message("user"):
             st.markdown(prompt)
         message_content.append({"type": "text", "text": prompt})
@@ -81,7 +83,7 @@ else:
                 image_file_id = uploaded_image.id
 
                 # Add image to chat and session state
-                st.session_state.messages.append({"role": "user", "content": image_bytes, "is_image": True})
+                st.session_state.messages.append({"role": "user", "content": image_bytes, "is_image": True, "is_json": False})
                 with st.chat_message("user"):
                     st.image(image_bytes, caption="You")
 
@@ -140,7 +142,35 @@ else:
                 for content_block in message.content:
                     if content_block.type == "text":
                         assistant_reply += content_block.text.value
+                    elif content_block.type == "json":
+                        assistant_reply += json.dumps(content_block.json, indent=2)
                 if assistant_reply:
                     with st.chat_message("assistant"):
                         st.markdown(assistant_reply)
-                    st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
+                    st.session_state.messages.append({"role": "assistant", "content": assistant_reply, "is_json": False})
+
+    # Button to download the latest JSON object from chat history
+    if st.button("Download Latest JSON Message"):
+        # Find the latest JSON object in the chat history
+        latest_json_message = None
+        for message in reversed(st.session_state.messages):
+            json_match = re.search(r'\{.*\}', message["content"], re.DOTALL)
+            if json_match:
+                try:
+                    latest_json_message = json.loads(json_match.group())
+                    break
+                except json.JSONDecodeError:
+                    continue
+
+        if latest_json_message:
+            # Convert JSON object to string and write it to a .txt file
+            json_string = json.dumps(latest_json_message, indent=2)
+            json_bytes = json_string.encode('utf-8')
+            st.download_button(
+                label="Download JSON Message",
+                data=json_bytes,
+                file_name="latest_message.txt",
+                mime="text/plain"
+            )
+        else:
+            st.warning("No JSON message found in chat history.")
