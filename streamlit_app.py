@@ -7,9 +7,9 @@ import re
 import xml.etree.ElementTree as ET
 
 # Set up Streamlit app
-st.title("💬 Chatbot with Assistants API and Media Upload")
+st.title("💬 AI Process Engineer")
 st.write(
-    "This chatbot uses OpenAI's Assistants API and allows media upload. "
+    "This chatbot uses OpenAI's Assistants API and performs process optimiaztion. "
     "Please provide your OpenAI API key and Assistant ID below."
 )
 
@@ -151,7 +151,7 @@ else:
                     st.session_state.messages.append({"role": "assistant", "content": assistant_reply, "is_json": False})
 
     # Button to transform the latest JSON object to XML using provided function and download it
-    if st.button("Download Latest JSON as swimlane diagram"):
+    if st.button("View Latest JSON as a swimlane diagram"):
         # Find the latest JSON object in the chat history
         latest_json_message = None
         for message in reversed(st.session_state.messages):
