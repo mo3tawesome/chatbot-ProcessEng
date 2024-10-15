@@ -226,7 +226,9 @@ else:
                     for step in lane['steps']:
                         step_id = step['id']
                         swimlane_id = swimlane_ids[lane['stakeholder']]
-                        color = "#00FF00" if step['activity_type'] == "value-adding" else "#FFFF00" if step['activity_type'] == "non-value-adding but necessary" else "#FF0000"
+                        color = "#00FF00"  # Default color if 'activity_type' is not present
+                        if 'activity_type' in step:
+                            color = "#00FF00" if step['activity_type'] == "value-adding" else "#FFFF00" if step['activity_type'] == "non-value-adding but necessary" else "#FF0000"
                         style = f"shape=rectangle;fillColor={color};strokeColor=#000000;whiteSpace=wrap;"
                         step_cell = ET.SubElement(root, 'mxCell', id=step_id, parent=swimlane_id, value=step['name'], style=style, vertex="1")
                         column_x = step_positions[step_id] * column_width + initial_offset
