@@ -194,14 +194,14 @@ else:
                 for index, lane in enumerate(data['swimlanes'], start=2):
                     lane_id = f"lane_{index}"
                     swimlane_ids[lane['stakeholder']] = lane_id
-                    lane_style = "swimlane;horizontal=0;whiteSpace=wrap;"
+                    lane_style = "swimlane;horizontal=0;whiteSpace=wrap;fillColor=#FFFFFF;swimlaneFillColor=default;"
                     lane_cell = ET.SubElement(root, 'mxCell', id=lane_id, parent="1", value=lane['stakeholder'], style=lane_style, vertex="1")
                     ET.SubElement(lane_cell, 'mxGeometry', y=str(position_y), width=str(swimlane_width), height=str(swimlane_height)).set('as', 'geometry')
                     position_y += swimlane_height
 
                 # Add timeline swimlane
                 timeline_id = "timeline"
-                timeline_style = "swimlane;horizontal=0;whiteSpace=wrap;"
+                timeline_style = "swimlane;horizontal=0;whiteSpace=wrap;fillColor=#FFFFFF;swimlaneFillColor=default;"
                 timeline_cell = ET.SubElement(root, 'mxCell', id=timeline_id, parent="1", value="Timeline", style=timeline_style, vertex="1")
                 ET.SubElement(timeline_cell, 'mxGeometry', y=str(position_y), width=str(swimlane_width), height=str(total_timeline_height)).set('as', 'geometry')
 
@@ -256,7 +256,7 @@ else:
                 for arrow in data['arrows']:
                     from_id = arrow['from_id']
                     to_id = arrow['to_id']
-                    arrow_style = "edgeStyle=orthogonal;strokeColor=#000000;strokeWidth=2"
+                    arrow_style = "edgeStyle=elbowEdgeStyle;elbow=horizontal;orthogonalLoop=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#000000;strokeWidth=2"
                     arrow_cell = ET.SubElement(root, 'mxCell', parent="1", edge="1", source=from_id, target=to_id, style=arrow_style)
                     ET.SubElement(arrow_cell, 'mxGeometry', relative="1").set('as', 'geometry')
 
@@ -272,7 +272,7 @@ else:
                     f"Customer: {process_stats['customer']}"
                 )
                 process_stats_id = "process_stats"
-                process_stats_cell = ET.SubElement(root, 'mxCell', id=process_stats_id, parent="1", value=process_stats_text, style="shape=note;whiteSpace=wrap;", vertex="1")
+                process_stats_cell = ET.SubElement(root, 'mxCell', id=process_stats_id, parent="1", value=process_stats_text, style="shape=note;whiteSpace=wrap;fillColor=#095bff;fontColor=#FFFFFF;", vertex="1")
                 ET.SubElement(process_stats_cell, 'mxGeometry', x=str(swimlane_width + 20), y="20", width="300", height="200").set('as', 'geometry')
 
                 return diagram
